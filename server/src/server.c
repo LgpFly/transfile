@@ -17,6 +17,7 @@ void sigFunc(int signum){
 // 输入参数ip，port，thread_num，capacity of taskque
 int main(int argc, char **argv){
 
+    umask(0000);
     ARGS_CHECK(argc, 5);
     pipe(exit_pipe);
 
@@ -67,6 +68,8 @@ int main(int argc, char **argv){
     char cur_token[30];
     char cur_secret[30];
     int cur_secret_len;
+    char second[20];
+    char cwd[50];
     while(1){
         ready_num = epoll_wait(epfd, evs, 10, -1);
         for(int i = 0; i < ready_num; ++i){
@@ -217,6 +220,16 @@ int main(int argc, char **argv){
                                     memset(user_info + m, 0, sizeof(UserInfo));
                                     break;
                                 }
+                                bzero(cwd, sizeof(cwd));
+                                getcwd(cwd, sizeof(cwd));
+#ifdef _DEBUG
+                                printf("cwd:%s\n", cwd);
+#endif
+                                ret = chdir("../user_file");
+                                ERROR_CHECK(ret, -1, "chdir");
+                                ret = mkdir(cur_name, 0777);
+                                ERROR_CHECK(ret, -1, "mkdir");
+                                chdir(cwd);
                             }else{
                                 break;
                             }
@@ -316,6 +329,33 @@ int main(int argc, char **argv){
                                         }
                                         // 初始化其他信息
                                         initUserInfo(user_info + m);
+                                        // 将信息发送到客户端   path, level, level_dad
+                                        // ret = send(cur_cli_fd, user_info[m].u_path, 50, 0);
+                                        // if(-1 == ret){
+                                        //     printf("client dont conn\n");
+                                        //     epollDelFd(epfd, cur_cli_fd);
+                                        //     close(cur_cli_fd);
+                                        //     memset(user_info + m, 0, sizeof(UserInfo));
+                                        //     break;
+                                        // }
+                                        ret = send(cur_cli_fd, &user_info[m].f_level, 4, 0);
+                                        if(-1 == ret){
+                                            printf("client dont conn\n");
+                                            epollDelFd(epfd, cur_cli_fd);
+                                            close(cur_cli_fd);
+                                            memset(user_info + m, 0, sizeof(UserInfo));
+                                            break;
+                                        }
+                                        ret = send(cur_cli_fd, &user_info[m].f_level_dad, 4, 0);
+                                        if(-1 == ret){
+                                            printf("client dont conn\n");
+                                            epollDelFd(epfd, cur_cli_fd);
+                                            close(cur_cli_fd);
+                                            memset(user_info + m, 0, sizeof(UserInfo));
+                                            break;
+                                        }
+                                        
+                                        
 #ifdef _DEBUG
                                         printf("%s,%s,%s,%s,%s,%d\n", user_info[m].u_name, user_info[m].u_pswd, 
                                                user_info[m].u_token, user_info[m].u_salt, user_info[m].u_path, 
@@ -341,6 +381,50 @@ int main(int argc, char **argv){
                                     break;
                                 }
                                 break;
+                            }
+                            break;
+
+                        case 11:
+                            // 接收文件夹名，数据库里添加一条记录
+                            bzero(second, sizeof(second));                            
+                            ret = recv(cur_cli_fd, second, 20, 0);
+                            if(0 == ret){
+                                closeConn(epfd,user_info, m);
+                                break;
+                            }
+#ifdef _DEBUG
+                            printf("dir:%s\n", second);
+#endif
+                            int find_dir_res;
+                            find_dir_res = findDir(sql_conn, user_info[m].u_name, second, 
+                                                   user_info[m].f_level + 1);
+                            int mkdir_result;
+                            if(0 == find_dir_res){
+                                addDir(sql_conn, user_info[m].u_name, second, 'd', 
+                                       user_info[m].f_level + 1, user_info[m].f_level);
+                                // 相应的目录下，创建一个目录
+                                bzero(cwd, sizeof(cwd));
+                                getcwd(cwd, sizeof(cwd));
+                                chdir(user_info[m].u_path);
+#ifdef _DEBUG
+                                printf("u_path:%s\n", user_info[m].u_path);
+#endif
+                                mkdir(second, 0777);
+                                chdir(cwd);
+                                mkdir_result = 0;
+                                ret = send(cur_cli_fd, &mkdir_result, 4, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+                            }else{
+                                mkdir_result = -1;
+                                ret = send(cur_cli_fd, &mkdir_result, 4, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+
                             }
                             break;
                         }            

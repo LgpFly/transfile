@@ -11,7 +11,7 @@ typedef struct{
     int f_level_dad;            // 父目录层级
 }UserInfo, *pUserInfo;
 
-void initUserInfo(UserInfo*, char*, char*);
+void initUserInfo(UserInfo*, char*, char*, int, int);
 
 
 #endif

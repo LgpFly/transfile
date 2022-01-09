@@ -2,7 +2,7 @@
 #include "../include/transfile.h"
 #include "../include/userinfo.h"
 #include "../include/epoll.h"
-
+#include "../include/order.h"
 UserInfo user_info;
 
 void* threadFund(void* p_arg){
@@ -56,12 +56,17 @@ int main(int argc, char **argv){
     ret = epollAddFd(epfd, socket_fd);
     ERROR_CHECK(ret, -1, "epollAdd socket_fd");
     
+    struct epoll_event evs[10];
+
     char cur_buf[20];
     char cur_name[20];
     int cur_name_len;
     char cur_salt[3];
     char cur_secret[30];
     char cur_token[30];
+    char cur_path[50];
+    int f_level;
+    int f_level_dad;
     int order;
     char *pswd = (char*) calloc(8, 1);
     Train train;
@@ -222,9 +227,33 @@ login_begin:
                     close(socket_fd);
                     exit(0);
                 }
+                // bzero(cur_path, sizeof(cur_path));
+                // ret = recv(socket_fd, cur_path, 50, MSG_WAITALL);
+                // if(-1 == ret){
+                //     printf("server dont conn\n");
+                //     close(socket_fd);
+                //     exit(0);
+                // }
+                ret = recv(socket_fd, &f_level, 4, MSG_WAITALL);
+                if(-1 == ret){
+                    printf("server dont conn\n");
+                    close(socket_fd);
+                    exit(0);
+                }
+                ret = recv(socket_fd, &f_level_dad, 4, MSG_WAITALL);
+                if(-1 == ret){
+                    printf("server dont conn\n");
+                    close(socket_fd);
+                    exit(0);
+                }
                 // init user_info struct
-                initUserInfo(&user_info, cur_name, cur_token);
+                initUserInfo(&user_info, cur_name, cur_token, f_level, f_level_dad);
                 printf("login success\n");
+#ifdef _DEBUG
+                printf("%s, %s, %s, %d, %d\n", user_info.u_name, user_info.u_path,
+                       user_info.u_token, user_info.f_level, user_info.f_level_dad);
+#endif
+                print(user_info.u_path);
             }else if(-1 == result){
                 // login error
                 printf("pswd error\n");
@@ -241,9 +270,56 @@ login_begin:
         printf("input error!\n");
         goto login_begin;
     }
-
+    
+    char cur_order[40];
     while(1){
+        int ready_num = epoll_wait(epfd, evs, 10, 0);
+        for(int i = 0; i < ready_num; ++i){
+            if(evs[i].data.fd == 0){
+                memset(cur_order, 0, sizeof(cur_order));
+                setbuf(stdin, NULL);
+                gets(cur_order);
+                char first[40];
+                char second[20];
+                memset(first, 0, sizeof(first));
+                memset(second, 0, sizeof(second));
+                orderSplit(cur_order, first, second);
+#ifdef _DEBUG
+                printf("order:%s,first:%s,second:%s\n", cur_order, first, second);
+#endif
+                
+                if(0 == strcmp(first, "mdir")){
+                    // 发送mdir的指令
+                    if(0 != strlen(second)){
+                        order = 11;
+                        ret = send(socket_fd, &order, 4, 0);
+                        ERROR_CHECK(ret, -1, "send 11");
+                        ret = send(socket_fd, second, 20, 0);
+                        ERROR_CHECK(ret, -1, "send 11 second");
+                        int mkdir_result;
+                        ret = recv(socket_fd, &mkdir_result, 4, 0);
+                        if(0 == ret){
+                            close(socket_fd);
+                            printf("server fly\n");
+                        }
+                        if(0 == mkdir_result){
+#ifdef _DEBUG
+                            printf("mkdir success\n");
+#endif
+                            print(user_info.u_path);
+                        }else if(-1 == mkdir_result){
+                            printf("%s has exit, please change name!\n", second);
+                            print(user_info.u_path);
+                        }
+                    }else{
+                        printf("order error\n");
+                        print(user_info.u_path);
+                    }
 
+                }
+
+            }
+        }
 
     }
 

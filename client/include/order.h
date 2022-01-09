@@ -11,9 +11,13 @@ enum Order{
     downloads = 7,
     ps = 8,
     del = 9, 
-    quit = 10
+    quit = 10,
+    mdir = 11
 };
 
 
+void orderSplit(char*, char*, char*);
+
+void print(char*);
 #endif
 

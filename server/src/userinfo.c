@@ -25,8 +25,8 @@ int addUser(MYSQL* sql_conn, char* name, char* salt, char* pswd, char* token){
 
 void initUserInfo(UserInfo* user_info){
     // sprintf(user_info->u_path, "%s%s%s", user_info->u_path, user_info->u_name, "@ubuntu:~/");
+    strcat(user_info->u_path, "../user_file/");
     strcat(user_info->u_path, user_info->u_name);
-    strcat(user_info->u_path, "@ubuntu:~/");
     user_info->f_level = 0;
     user_info->f_level_dad = -1;
     user_info->con_flag = 1;

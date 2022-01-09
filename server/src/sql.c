@@ -159,7 +159,52 @@ int addRootFile(MYSQL* sql_conn, char* u_name, char* f_name, char type, int f_le
 #endif
         return 0;
     }
-} 
+}
+
+void addDir(MYSQL* sql_conn, char* u_name, char* f_name, char type, int f_level, int f_level_dad){
+    addRootFile(sql_conn, u_name, f_name, type, f_level, f_level_dad);
+}
+
+int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    char query[300];
+    bzero(query, sizeof(query));
+    strcat(query, "select f_id from fileinfo where u_name='");
+    strcat(query, u_name);
+    strcat(query, "' and f_name='");
+    strcat(query, f_name);
+    strcat(query, "' and f_level=");
+    sprintf(query, "%s%d", query, f_level);
+    puts(query);
+    int t;
+    t=mysql_query(sql_conn,query);
+    if(t)
+    {
+        printf("Error making query:%s\n",mysql_error(sql_conn));
+        return -1;
+    }else{
+        res = mysql_use_result(sql_conn);
+        if(res)
+        {
+            if((row = mysql_fetch_row(res)) != NULL)
+            {
+                mysql_free_result(res);
+                return -1;
+            }
+        }else{
+            printf("查询出错\n");
+            return -1;
+        }
+        mysql_free_result(res);
+    }
+
+    return 0;
+
+}
+
+
+
 
 
 
