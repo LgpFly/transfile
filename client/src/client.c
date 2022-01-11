@@ -356,6 +356,51 @@ login_begin:
                         printf("order error!\n");
                         print(user_info.u_path);
                     }
+                }else if(0 == strcmp(first, "ls")){
+                    
+                    order = 3;
+                    ret = send(socket_fd, &order, 4, 0);
+                    if(-1 == ret){
+                        printf("fly\n");
+                        close(socket_fd);
+                        exit(0);        
+                    }
+                    int ls_res;
+                    char ls_result[100];
+                    ret = recv(socket_fd, &ls_res, 4, 0);
+                    if(0 == ret){
+                        printf("fly\n");
+                        close(socket_fd);
+                        exit(0);        
+                    }
+                    if(0 == ls_res){
+                        memset(ls_result, 0, sizeof(ls_result));
+                        ret = recv(socket_fd, ls_result, 100, 0);
+                        if(0 == ret){
+                            printf("fly\n");
+                            close(socket_fd);
+                            exit(0);        
+                        }
+                        printf("%s", ls_result);
+                        print(user_info.u_path);
+                    }else if(-1 == ls_res){
+                        printf("unknow error\n");
+                        print(user_info.u_path);
+                    }
+                    
+                }else if(0 == strcmp(first, "upload")){
+
+                }else if(0 == strcmp(first, "download")){
+
+                }else if(0 == strcmp(first, "downloads")){
+
+                }else if(0 == strcmp(first, "del")){
+
+                }else if(0 == strcmp(first, "quit")){
+
+                }else{
+                    printf("order error\n");
+                    print(user_info.u_path);
                 }
 
             }

@@ -286,6 +286,44 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
     return 0;
 }
 
+int lsFunc(MYSQL* sql_conn, UserInfo* user_info, int m, char* result){
 
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    char query[300]="select f_name, f_type, f_size from fileinfo where u_name = '";
+    sprintf(query, "%s%s%s%s%d", query, user_info[m].u_name, "'", " and f_level = ", user_info[m].f_level + 1);
+#ifdef _DEBUG
+    puts(query);
+#endif
+    int t;
+    t=mysql_query(sql_conn,query);
+    if(t)
+    {
+        printf("Error making query:%s\n",mysql_error(sql_conn));
+        return -1;
+    }else
+    {
+        res=mysql_use_result(sql_conn);
+        if(res)
+        {
+            while((row=mysql_fetch_row(res))!=NULL)
+            {
+                // sprintf(result, "%s%s%s%s%s%lld\n", result, row[0], "--", row[1], "--", atoll(row[2]));
+                if(NULL == row[2])
+                    sprintf(result, "%s%-10s%s\n", result, row[0], row[1]);
+                else
+                    sprintf(result, "%s%s%s%s%s%lld\n", result, row[0], "--", row[1], "--", atoll(row[2]));
+
+            }
+        }else{
+#ifdef _DEBUG
+            printf("res error\n");
+#endif
+            return -1;
+        }
+        mysql_free_result(res);
+    }
+    return 0;
+}
 
 

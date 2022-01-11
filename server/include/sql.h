@@ -26,4 +26,6 @@ int findDir(MYSQL*, char*, char*, int);
 
 int myChDir(MYSQL*, UserInfo*, int, char (*dir)[20]);
 
+int lsFunc(MYSQL*, UserInfo*, int, char*);
+
 #endif

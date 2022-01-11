@@ -477,6 +477,41 @@ int main(int argc, char **argv){
                             printf("now:%s,%d,%d\n", user_info[m].u_path, user_info[m].f_level, user_info[m].f_level_dad);
 #endif
                             break;
+                        
+                        // ls 
+                        case 3:
+#ifdef _DEBUG
+                            printf("userInformation:%s%d\n", user_info[m].u_name, user_info[m].f_level);
+#endif
+                            int ls_res;
+                            char ls_result[100];
+                            memset(ls_result, 0, sizeof(ls_result));
+                            ls_res = lsFunc(sql_conn, user_info, m, ls_result);
+#ifdef _DEBUG
+                            printf("ls:%s", ls_result);
+#endif
+                            if(0 == ls_res){
+                                // 查询成功
+                                ret = send(cur_cli_fd, &ls_res, 4, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+                                ret = send(cur_cli_fd, ls_result, 100, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+                            }else if(-1 == ls_res){
+                                // 查询失败
+                                ret = send(cur_cli_fd, &ls_res, 4, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+                            }
+                            break;
+
                         // upload上传命令
                         case 5:
 
