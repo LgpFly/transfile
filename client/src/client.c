@@ -301,6 +301,7 @@ login_begin:
                         if(0 == ret){
                             close(socket_fd);
                             printf("server fly\n");
+                            exit(0);
                         }
                         if(0 == mkdir_result){
 #ifdef _DEBUG
@@ -316,6 +317,45 @@ login_begin:
                         print(user_info.u_path);
                     }
 
+                }else if(0 == strcmp(first, "cd")){
+                    if(0 != strlen(second)){
+                        order = 4;
+                        ret = send(socket_fd, &order, 4, 0);
+                        if(-1 == ret){
+                            close(socket_fd);
+                            printf("server fly\n");
+                            exit(0);
+                        }
+                        // 具体指令
+                        ret = send(socket_fd, second, 20, 0);
+                        if(-1 == ret){
+                            close(socket_fd);
+                            printf("server fly\n");
+                            exit(0);
+                        }
+                        int result;
+                        ret = recv(socket_fd, &result, 4, 0);
+                        if(0 == ret){
+                            printf("fly\n");
+                            close(socket_fd);
+                            exit(0);
+                        }
+                        if(0 == result){
+                            // 成功到达路径
+                            char cur_dir[5][20];
+                            bzero(cur_dir, sizeof(cur_dir));
+                            dirSplit(second, cur_dir);
+                            chPath(&user_info, cur_dir);
+                            print(user_info.u_path);
+                        }else{
+                            printf("dir error\n");
+                            print(user_info.u_path);
+                        }
+
+                    }else{
+                        printf("order error!\n");
+                        print(user_info.u_path);
+                    }
                 }
 
             }

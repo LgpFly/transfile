@@ -4,7 +4,7 @@
 #include "../include/userinfo.h"
 #include "../include/fileinfo.h"
 #include "../include/sql.h"
-
+#include "../include/order.h"
 
 int exit_pipe[2];
 void sigFunc(int signum){
@@ -424,9 +424,85 @@ int main(int argc, char **argv){
                                     closeConn(epfd, user_info, m);
                                     break;
                                 }
-
                             }
                             break;
+                        // cd命令
+                        case 4:
+#ifdef _DEBUG
+                            printf("now:%s,%d,%d\n", user_info[m].u_path, user_info[m].f_level, user_info[m].f_level_dad);
+#endif
+                            bzero(second, sizeof(second));
+                            ret = recv(cur_cli_fd, second, 20, 0);
+                            if(0 == ret){
+                                closeConn(epfd, user_info, m);
+                                break;
+                            }
+#ifdef _DEBUG
+                            printf("cd dir:%s\n", second);
+#endif
+                            // 把路径分割开放到栈里面
+                            char cur_dir[5][20];
+                            bzero(cur_dir, sizeof(cur_dir));
+                            dirSplit(second, cur_dir);
+#ifdef _DEBUG
+                            for(int i = 0; i < 5; ++i){
+                                if(0 != strcmp(cur_dir[i], ""))
+                                    printf("%d:%s\n", i, cur_dir[i]);
+                                else
+                                    break;
+                            }
+                            fflush(stdout);
+#endif
+                            int chdir_res;
+                            chdir_res = myChDir(sql_conn, user_info, m, cur_dir);
+                            int chdir_result;
+                            if(0 == chdir_res){
+                                // 改变user_info里面的信息,只有路径信息，其他的已经改了
+                                chUserInfo(user_info, m, cur_dir);
+                                chdir_result = 0;
+                                ret = send(cur_cli_fd, &chdir_result, 4, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+                            }else{
+                                chdir_result = -1;
+                                ret = send(cur_cli_fd, &chdir_result, 4, 0);
+                                if(-1 == ret){
+                                    closeConn(epfd, user_info, m);
+                                    break;
+                                }
+                            }
+#ifdef _DEBUG
+                            printf("now:%s,%d,%d\n", user_info[m].u_path, user_info[m].f_level, user_info[m].f_level_dad);
+#endif
+                            break;
+                        // upload上传命令
+                        case 5:
+
+                            break;
+                        
+                        // download 普通下载命令 
+                        case 6:
+                            break;
+                        // downloads 多点下载
+                        case 7:
+                            break;
+                        // ps 查看下载上传进度
+                        // 好像这里用不到
+                        case 8:
+                            break;
+                        // del 删除文件
+                        case 9:
+                            break;
+
+                        // quit退出
+                        case 10:
+                            break;
+
+
+
+
                         }            
                     }
                 }

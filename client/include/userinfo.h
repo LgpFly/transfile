@@ -13,5 +13,6 @@ typedef struct{
 
 void initUserInfo(UserInfo*, char*, char*, int, int);
 
+void chPath(UserInfo*, char (*res)[20]);
 
 #endif

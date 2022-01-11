@@ -174,7 +174,8 @@ int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
     strcat(query, u_name);
     strcat(query, "' and f_name='");
     strcat(query, f_name);
-    strcat(query, "' and f_level=");
+    strcat(query, "' and f_type='d'");
+    strcat(query, "and f_level=");
     sprintf(query, "%s%d", query, f_level);
     puts(query);
     int t;
@@ -203,7 +204,87 @@ int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
 
 }
 
+int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    int level = user_info[m].f_level;
+    int level_dad = user_info[m].f_level_dad;
+    char name[20];
+    bzero(name, sizeof(name));
+    strcpy(name, user_info[m].u_name);
+    char query[100];
+    int t;
+    for(int i = 0; i < 5; ++i){
+        if(0 != strcmp(dir[i], "")){
+            if(0 == strcmp(dir[i], "..")){
+                if(-1 == level_dad){
+                    return -1;
+                }else{
+                    bzero(query, sizeof(query));
+                    strcat(query, "select f_level_father from fileinfo where u_name = '");
+                    sprintf(query, "%s%s%s%s%d%s", query, name, "'", " and f_level=", level_dad, " and f_type = 'd'");
+                    puts(query);
+                    t = mysql_query(sql_conn, query);
+                    if(t){
+                        printf("error\n");
+                        return -1;
+                    }else{
+                        res = mysql_use_result(sql_conn);
+                        if(res){
+                            if((row = mysql_fetch_row(res)) != NULL){
+                                level = level_dad;
+                                level_dad = atoi(row[0]);
+                                mysql_free_result(res);
+                            }else{
+                                
+                            }
+                        }else{
+                            printf("查询出错\n");
+                            mysql_free_result(res);
+                            return -1;
+                        }
+                    }
+                }
+            }else{
+                bzero(query, sizeof(query));
+                strcat(query, "select f_level from fileinfo where u_name='");
+                sprintf(query, "%s%s%s%s%d%s%s%s%s", query, name, "'", " and f_level_father=", level, " and f_type='d'", 
+                        "and f_name='", dir[i], "'");
+                puts(query);
+                t = mysql_query(sql_conn, query);
+                if(t){
+                    printf("error\n");
+                    return -1;
+                }else{
+                    res = mysql_use_result(sql_conn);
+                    if(res){
+                        if((row = mysql_fetch_row(res)) != NULL){
+                            level_dad = level;
+                            level = atoi(row[0]);
+                            mysql_free_result(res);
+                        }else{
+#ifdef _DEBUG
+                            printf("no this dir\n");
 
+#endif
+                            return -1;
+                        }
+
+                    }else{
+                        printf("error\n");
+                        mysql_free_result(res);
+                        return -1;
+                    }
+                }
+            }
+        }else{
+            user_info[m].f_level = level;
+            user_info[m].f_level_dad = level_dad;
+            break;
+        }
+    }
+    return 0;
+}
 
 
 

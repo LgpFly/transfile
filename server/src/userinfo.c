@@ -33,3 +33,33 @@ void initUserInfo(UserInfo* user_info){
     user_info->login_flag = 1;
 }
 
+
+void chUserInfo(UserInfo* user_info, int m, char (*dir)[20]){
+    
+    int len = strlen(user_info[m].u_path);
+    int k = len;
+    for(int i = 0; i < 5; ++i){
+        if(0 == strcmp(dir[i], "")){
+            break;
+        }else{
+            if(0 == strcmp(dir[i], "..")){
+                for(; k >= 0; --k){
+                    if(user_info[m].u_path[k] != '/'){
+                        user_info[m].u_path[k] = 0;
+                    }else{
+                        user_info[m].u_path[k] = 0;
+                        --k;
+                        break;
+                    }
+                }
+            }else{
+                strcat(user_info[m].u_path, "/");
+                strcat(user_info[m].u_path, dir[i]);
+            }
+        }
+    }
+
+    return;
+
+    
+}

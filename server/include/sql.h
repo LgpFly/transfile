@@ -24,4 +24,6 @@ void addDir(MYSQL* sql_conn, char* u_name, char* f_name, char type, int f_level,
 
 int findDir(MYSQL*, char*, char*, int);
 
+int myChDir(MYSQL*, UserInfo*, int, char (*dir)[20]);
+
 #endif

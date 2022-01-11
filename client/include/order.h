@@ -19,5 +19,7 @@ enum Order{
 void orderSplit(char*, char*, char*);
 
 void print(char*);
+
+void dirSplit(char* dir, char (*res)[20]);
 #endif
 

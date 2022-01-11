@@ -25,4 +25,6 @@ int addUser(MYSQL*, char*, char*, char*, char*);
 
 void initUserInfo(pUserInfo);
 
+void chUserInfo(UserInfo*, int, char (*dir)[20]);
+
 #endif
