@@ -5,6 +5,13 @@
 
 // 任务队列的节点
 typedef struct node{
+    int up_or_down;
+    char f_name[20];
+    char f_md5[33];
+    int f_level;
+    char u_name[20];
+    char u_path[50];
+    long f_size;
     int client_fd;          // 客户端fd
     struct node* next;      // 指向下一个节点的指针
 }QueNode, *pQueNode;

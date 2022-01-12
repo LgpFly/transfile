@@ -6,6 +6,9 @@
 #include "../include/sql.h"
 #include "../include/order.h"
 
+extern MYSQL* sql_conn;
+
+
 int exit_pipe[2];
 void sigFunc(int signum){
 #ifdef _DEBUG
@@ -55,7 +58,6 @@ int main(int argc, char **argv){
     int ready_num = 0;
     struct epoll_event evs[10];
     bzero(evs, sizeof(evs));
-    MYSQL* sql_conn;
     sqlConnect(&sql_conn);
     
     int order;
@@ -85,15 +87,91 @@ int main(int argc, char **argv){
                 printf("con_flag = %d\n", con_flag);
 #endif
                 if(-1 != con_flag){
-                
-                    pQueNode p_node = (pQueNode)calloc(1, sizeof(QueNode));
-                    p_node->client_fd = client_fd;
-                    // 加入任务队列中
-                    pthread_mutex_lock(&(thread_pool.task_que.mutex));
-                    ret = taskQueInsert(&(thread_pool.task_que), p_node);
-                    pthread_mutex_unlock(&(thread_pool.task_que.mutex));
-                    // 唤醒子线程
-                    pthread_cond_signal(&(thread_pool.task_que.cond));
+                    int up_or_down;
+                    int main_fd;
+                    char child_name[20];
+                    char child_path[50];
+                    int child_level;
+
+                    // 找到是哪个客户端
+                    ret = recv(client_fd, &main_fd, 4, MSG_WAITALL);
+                    if(0 == ret){
+                        printf("client dont conn\n");
+                        close(client_fd);
+                    }
+                    int i;
+                    for(i = 0; i < 10; ++i){
+                        if(main_fd == user_info[i].main_socket_fd){
+                            memset(child_name, 0, sizeof(child_name));
+                            strcpy(child_name, user_info[i].u_name);
+                            memset(child_path, 0, sizeof(child_path));
+                            strcpy(child_path, user_info[i].u_path);
+                            child_level = user_info[i].f_level;
+#ifdef _DEBUG
+                            printf("child infomaintion:%s%s%d\n", child_name, child_path, child_level);
+#endif
+                            break;
+                        }
+                    }
+                    if(10 == i){
+                        printf("child unknown error\n ");
+                    }
+                    
+                    // 接收是上传还是下载的信息
+                    ret = recv(client_fd, &up_or_down, 4, MSG_WAITALL);
+                    if(0 == ret){
+                        printf("client dont conn\n");
+                        close(client_fd);
+                    }
+                    
+                    // 1:上传文件
+                    if(1 == up_or_down){
+                        // 创建一个任务节点
+                        pQueNode p_node = (pQueNode)calloc(1, sizeof(QueNode));
+                        p_node->up_or_down = 1;
+                        // 接收文件信息并初始化任务节点
+                        ret = recv(client_fd, p_node->f_name, 20, MSG_WAITALL);
+                        if(0 == ret){
+                            printf("client dont conn\n");
+                            close(client_fd);
+                        }
+                        ret = recv(client_fd, &(p_node->f_size), 8, MSG_WAITALL);
+                        if(0 == ret){
+                            printf("client dont conn\n");
+                            close(client_fd);
+                        }
+                        ret = recv(client_fd, p_node->f_md5, 33, MSG_WAITALL);
+                        if(0 == ret){
+                            printf("client dont conn\n");
+                            close(client_fd);
+                        }
+                        strcpy(p_node->u_name, child_name);
+                        strcpy(p_node->u_path, child_path);
+                        p_node->f_level = child_level;
+                        p_node->client_fd = client_fd;
+                        
+#ifdef _DEBUG
+                        printf("p_node information:%d,%s,%s,%d,%s,%s,%ld,%d\n", p_node->up_or_down,
+                               p_node->f_name, p_node->f_md5, p_node->f_level, p_node->u_name,
+                               p_node->u_path, p_node->f_size, p_node->client_fd);
+#endif
+                        // 将任务节点放到任务队列中
+                        pthread_mutex_lock(&(thread_pool.task_que.mutex));
+                        ret = taskQueInsert(&(thread_pool.task_que), p_node);
+                        pthread_mutex_unlock(&(thread_pool.task_que.mutex));
+                        // 唤醒子线程
+                        pthread_cond_signal(&(thread_pool.task_que.cond));
+
+                    } // end of if(1 == up_or_down)
+
+                    // pQueNode p_node = (pQueNode)calloc(1, sizeof(QueNode));
+                    // p_node->client_fd = client_fd;
+                    // // 加入任务队列中
+                    // pthread_mutex_lock(&(thread_pool.task_que.mutex));
+                    // ret = taskQueInsert(&(thread_pool.task_que), p_node);
+                    // pthread_mutex_unlock(&(thread_pool.task_que.mutex));
+                    // // 唤醒子线程
+                    // pthread_cond_signal(&(thread_pool.task_que.cond));
                 }// endif(-1 != con_flag)
                 if(-1 == con_flag){
                     epollAddFd(epfd, client_fd);
@@ -354,9 +432,14 @@ int main(int argc, char **argv){
                                             memset(user_info + m, 0, sizeof(UserInfo));
                                             break;
                                         }
-                                        
-                                        
+                                        // 新加的cur_cli_fd send to client 
+                                        ret = send(cur_cli_fd, &user_info[m].main_socket_fd, 4, 0);
+                                        if(-1 == ret){
+                                            closeConn(epfd, user_info, m);
+                                            break;
+                                        }
 #ifdef _DEBUG
+                                        printf("main_socket_fd:%d,%d\n", user_info[m].main_socket_fd, cur_cli_fd);
                                         printf("%s,%s,%s,%s,%s,%d\n", user_info[m].u_name, user_info[m].u_pswd, 
                                                user_info[m].u_token, user_info[m].u_salt, user_info[m].u_path, 
                                                user_info[m].f_level);
@@ -514,8 +597,9 @@ int main(int argc, char **argv){
 
                         // upload上传命令
                         case 5:
-
-                            break;
+                           printf("i will create a new task and insert to taskque\n"); 
+                           
+                           break;
                         
                         // download 普通下载命令 
                         case 6:

@@ -1,6 +1,7 @@
 #include "../include/userinfo.h"
 
-void initUserInfo(UserInfo* user_info, char* name, char* token, int level, int level_dad){
+void initUserInfo(UserInfo* user_info, char* name, char* token, int level, int level_dad, int main_socket_fd){
+
 
     strcpy(user_info->u_name, name);
     strcpy(user_info->u_token, token);
@@ -8,6 +9,7 @@ void initUserInfo(UserInfo* user_info, char* name, char* token, int level, int l
     strcat(user_info->u_path, user_info->u_name);
     strcat(user_info->u_path, "@ubuntu:~/");
     // strcat(user_info->u_path, "$");
+    user_info->main_socket_fd = main_socket_fd;
     user_info->f_level = level;
     user_info->f_level_dad = level_dad;
     return;

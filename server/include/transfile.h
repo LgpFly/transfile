@@ -8,6 +8,13 @@ typedef struct{
     char buf[1020];
 }Train;
 
+typedef struct{
+    char f_name[20];
+    long f_size;
+    char f_md5[33];
+}UpFileInfo, *pUpFileInfo;
+
+
 // 发送一个文件
 int sendFile(int client_fd);
 

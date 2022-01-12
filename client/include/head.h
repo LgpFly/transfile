@@ -40,5 +40,7 @@
 // 函数返回值检查的宏定义
 #define ERROR_CHECK(ret, ret_val, func_name){if(ret == ret_val) perror(func_name);}
 
+#define CHECK_RET(ret_val, ret, socket_fd){if(ret == ret_val) {printf("fly"); close(socket_fd); exit(0);}}
+
 
 #endif

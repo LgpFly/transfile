@@ -4,6 +4,8 @@
 #include "../include/epoll.h"
 #include "../include/order.h"
 UserInfo user_info;
+struct sockaddr_in cli_addr;
+int socket_fd;
 
 void* threadFund(void* p_arg){
     int ret;
@@ -27,16 +29,77 @@ void* threadFund(void* p_arg){
     
 }
 
+void *uploadFunc(void* p_arg){
+    int ret;
+    int con_flag = 1;
+    pUpFileInfo p_file_info = (pUpFileInfo)p_arg;
+#ifdef _DEBUG
+    printf("new thread %d, port:%d\n", user_info.main_socket_fd, ntohs(cli_addr.sin_port));
+#endif
+    int upload_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ret = connect(upload_fd, (struct sockaddr*)&cli_addr, sizeof(struct sockaddr_in));
+    ret = send(upload_fd, &con_flag, 4, 0);
+    if(-1 == ret){
+        printf("fly\n");
+        close(upload_fd);
+        close(socket_fd);
+        exit(0);
+    }
+    // 发送main_socket_fd，使server知道是哪个客户端
+    ret = send(upload_fd, &user_info.main_socket_fd, 4, 0);
+    if(-1 == ret){
+        printf("fly\n");
+        close(upload_fd);
+        close(socket_fd);
+        exit(0);
+    }
+    // 发送上传还是下载命令1：上传 2：普通下载 3：vip下载
+    int up_or_down = 1;
+    ret = send(upload_fd, &up_or_down, 4, 0);
+    if(-1 == ret){
+        printf("fly\n");
+        close(upload_fd);
+        close(socket_fd);
+        exit(0);
+    }
+    
+    // 发送文件信息
+    ret = send(upload_fd, p_file_info->f_name, 20, 0);
+    if(-1 == ret){
+        printf("fly\n");
+        close(upload_fd);
+        close(socket_fd);
+        exit(0);
+    }
+    ret = send(upload_fd, &(p_file_info->f_size), 8, 0);
+    if(-1 == ret){
+        printf("fly\n");
+        close(upload_fd);
+        close(socket_fd);
+        exit(0);
+    }
+    ret = send(upload_fd, p_file_info->f_md5, 33, 0);
+    if(-1 == ret){
+        printf("fly\n");
+        close(upload_fd);
+        close(socket_fd);
+        exit(0);
+    }
+
+    sendFile(upload_fd, p_file_info->f_name, p_file_info->f_size);  
+
+}
+
 
 int main(int argc, char **argv){
     ARGS_CHECK(argc, 3);
     int con_flag = -1;
     int ret;
-    int socket_fd;
+    // int socket_fd;
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     ERROR_CHECK(socket_fd, -1, "socket");
     
-    struct sockaddr_in cli_addr;
+    // struct sockaddr_in cli_addr;
     cli_addr.sin_family = AF_INET;
     cli_addr.sin_port = htons(atoi(argv[2]));
     cli_addr.sin_addr.s_addr = inet_addr(argv[1]);
@@ -246,8 +309,12 @@ login_begin:
                     close(socket_fd);
                     exit(0);
                 }
+                int main_socket_fd;
+                ret = recv(socket_fd, &main_socket_fd, 4, 0);
+                CHECK_RET(ret, -1, socket_fd);
                 // init user_info struct
-                initUserInfo(&user_info, cur_name, cur_token, f_level, f_level_dad);
+                initUserInfo(&user_info, cur_name, cur_token, f_level, f_level_dad, main_socket_fd);
+                printf("main_socket_fd:%d\n", user_info.main_socket_fd);
                 printf("login success\n");
 #ifdef _DEBUG
                 printf("%s, %s, %s, %d, %d\n", user_info.u_name, user_info.u_path,
@@ -389,7 +456,22 @@ login_begin:
                     }
                     
                 }else if(0 == strcmp(first, "upload")){
-
+                    // 上传文件
+                    order = 5;
+                    ret = send(socket_fd, &order, 4, 0);                    
+                    CHECK_RET(-1, ret, socket_fd);
+                    UpFileInfo file_info;
+                    memset(&file_info, 0, sizeof(file_info));
+                    ret = getFileInfo(second, &file_info);
+                    if(-1 == ret){
+                        printf("file error\n");
+                        print(user_info.u_path);
+                    }else{
+                        // printf("我会新建一个线程来上传这个文件\n");
+                        pthread_t p_id;
+                        ret = pthread_create(&p_id, NULL, uploadFunc, &file_info);
+                        print(user_info.u_path);
+                    }
                 }else if(0 == strcmp(first, "download")){
 
                 }else if(0 == strcmp(first, "downloads")){

@@ -4,6 +4,7 @@
 #include "head.h"
 #include "userinfo.h"
 
+MYSQL* sql_conn;
 /*
  * 连接数据库 
 */
@@ -27,5 +28,7 @@ int findDir(MYSQL*, char*, char*, int);
 int myChDir(MYSQL*, UserInfo*, int, char (*dir)[20]);
 
 int lsFunc(MYSQL*, UserInfo*, int, char*);
+
+int addFile(MYSQL*, char* u_name, char* f_name, long f_size, char* md5, int f_level);
 
 #endif

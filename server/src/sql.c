@@ -326,4 +326,30 @@ int lsFunc(MYSQL* sql_conn, UserInfo* user_info, int m, char* result){
     return 0;
 }
 
+// f_level其实是他的dad级别，他自己的级别应该是f_level+1
+int addFile(MYSQL* sql_conn, char* u_name, char* f_name, long f_size, char* md5, int f_level){
+    
+    char type = 'f';
+    char query[200]="insert into fileinfo (u_name, f_name, f_size, f_type, f_level, f_level_father, md5)values(";                                                                                     
+    sprintf(query, "%s'%s', '%s', %ld, '%c', %d, %d, '%s')",query, u_name, f_name, f_size, type, f_level + 1, f_level, md5);
+    printf("query= %s\n",query);
+    int t;
+    t=mysql_query(sql_conn,query);
+    if(t)
+    {
+#ifdef _DEBUG
+        printf("Error making query:%s\n",mysql_error(sql_conn));
+#endif
+        return -1;
+    }else{
+#ifdef _DEBUG
+        printf("insert success\n");
+#endif
+        return 0;
+    }
+    
+}
+
+
+
 

@@ -16,7 +16,7 @@ typedef struct{
 /*
  * 创建根目录 
 */
-int addFile(MYSQL*, FileInfo*);
+// int addFile(MYSQL*, FileInfo*);
 
 
 #endif

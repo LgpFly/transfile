@@ -1,4 +1,5 @@
 #include "../include/transfile.h"
+#include "../include/md5.h"
 
 // 接收一个文件
 int recvFile(int client_fd){
@@ -88,3 +89,62 @@ int recvFile(int client_fd){
     close(file_fd);
     return 0;
 }
+
+
+int getFileInfo(char* f_name, UpFileInfo* up_file_info){
+    
+    int ret;
+    char md5[33];
+    strcpy(up_file_info->f_name, f_name);
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(statbuf));
+    int fd = open(f_name, O_RDWR);
+    if(-1 == fd){
+        printf("open file error\n");
+        return -1;
+    }
+    ret = fstat(fd, &statbuf);
+    up_file_info->f_size = statbuf.st_size;
+    close(fd);
+    bzero(md5, sizeof(md5));
+    ret = computeFileMd5(f_name, md5);
+    if(-1 == ret){
+        printf("get md5 error\n");
+        return -1;
+    }
+    strcpy(up_file_info->f_md5, md5);
+#ifdef _DEBUG
+    printf("f_size:%ld,md5:%s", up_file_info->f_size, up_file_info->f_md5);
+#endif
+    return 0;
+
+}
+
+
+int sendFile(int fd, char* name, long size){
+    
+    int ret;
+    Train train;
+    long already_send = 0;
+    int one_send = 0;
+    int file_fd = open(name, O_RDWR);
+    while(already_send < size)
+    {
+        bzero(&train, sizeof(train));
+        one_send = read(file_fd, train.buf, sizeof(train.buf));
+        train.data_len = one_send;
+        ret = send(fd, &train, 4 + train.data_len, 0);
+        if(-1 == ret){
+            printf("server fly\n");
+            close(fd);
+            close(file_fd);
+            return -1;
+        }
+        already_send += one_send;
+    }
+    return 0;
+
+}
+
+
+
