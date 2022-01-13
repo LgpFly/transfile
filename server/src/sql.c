@@ -1,5 +1,7 @@
 #include "../include/sql.h"
 #include "../include/userinfo.h"
+#include "../include/head.h"
+
 
 int sqlConnect(MYSQL **conn)
 {
@@ -351,5 +353,46 @@ int addFile(MYSQL* sql_conn, char* u_name, char* f_name, long f_size, char* md5,
 }
 
 
+long findFile(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    long file_size;
+    char query[300];
+    bzero(query, sizeof(query));
+    strcat(query, "select f_size from fileinfo where u_name='");
+    strcat(query, u_name);
+    strcat(query, "' and f_name='");
+    strcat(query, f_name);
+    strcat(query, "' and f_type='f'");
+    strcat(query, "and f_level=");
+    sprintf(query, "%s%d", query, f_level);
+    puts(query);
+    int t;
+    t=mysql_query(sql_conn,query);
+    if(t)
+    {
+        printf("Error making query:%s\n",mysql_error(sql_conn));
+        return -1;
+    }else{
+        res = mysql_use_result(sql_conn);
+        if(res)
+        {
+            if((row = mysql_fetch_row(res)) != NULL)
+            {
+                // 这里返回一个局部变量，当然会出错的了
+                file_size = atoll(row[0]);
+                // printf("%ld\n", file_size);
+                mysql_free_result(res);
+                return file_size;
+            }
+        }else{
+            printf("查询出错\n");
+            mysql_free_result(res);
+            return -1;
+        }
+        mysql_free_result(res);
+    }
+
+}
 
 

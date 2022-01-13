@@ -16,6 +16,6 @@ typedef struct{
 
 
 // 发送一个文件
-int sendFile(int client_fd);
+int sendFile(int client_fd, char* u_path, char* f_name, long f_size);
 
 #endif

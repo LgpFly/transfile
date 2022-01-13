@@ -21,6 +21,6 @@ int getFileInfo(char*, pUpFileInfo);
 int sendFile(int client_fd, char* name, long size);
 
 // 接收一个文件
-int recvFile(int client_fd);
+int recvFile(int client_fd, char* name, long f_size);
 
 #endif

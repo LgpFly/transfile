@@ -39,6 +39,30 @@ void* threadFunc(void* p_arg){
         
         if(0 == ret){
             // 再写代码在这里开始写
+            // 普通下载
+            if(2 == p_one_node->up_or_down){
+                int client_fd = p_one_node->client_fd;
+                long find_res;
+                // find s return is file_size if dont have this file retur -1
+                find_res = findFile(sql_conn, p_one_node->u_name, p_one_node->f_name, p_one_node->f_level);
+#ifdef _DEBUG
+                printf("f_size:%ld\n", find_res);
+#endif
+                ret = send(client_fd, &find_res, 8, 0);
+                if(-1 == ret){
+                    printf("client dont conn\n");
+                    close(client_fd);
+                }
+                if(-1 != find_res){
+                    // send file
+                    sendFile(client_fd, p_one_node->u_path, p_one_node->f_name, find_res); 
+                }else{
+                    printf("no this file\n");
+                    close(client_fd);
+                }
+            }
+
+            // 上传
             if(1 == p_one_node->up_or_down){
                 // upload in here
                 // recv file and put the correct path then 变回到原来的路径下

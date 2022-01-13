@@ -42,5 +42,5 @@
 
 #define CHECK_RET(ret_val, ret, socket_fd){if(ret == ret_val) {printf("fly"); close(socket_fd); exit(0);}}
 
-
+#define CHILD_CHECK_RET(ret_val, ret, cli_fd, child_fd){ if(ret == ret_val){printf("fly\n"); close(cli_fd); close(child_fd);exit(0);} }
 #endif

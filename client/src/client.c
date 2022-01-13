@@ -7,27 +7,70 @@ UserInfo user_info;
 struct sockaddr_in cli_addr;
 int socket_fd;
 
-void* threadFund(void* p_arg){
+// void* threadFund(void* p_arg){
+//     int ret;
+//     int con_flag = 1;
+//     struct sockaddr_in* cli_child_addr = (struct sockaddr_in*)p_arg; 
+//     int child_fd = socket(AF_INET, SOCK_STREAM, 0);
+// 
+//     ret = connect(child_fd, (struct sockaddr*)cli_child_addr, sizeof(struct sockaddr_in));
+//     ERROR_CHECK(ret, -1, "connect");
+//     ret = send(child_fd, &con_flag, 4, 0);
+//     ERROR_CHECK(ret, -1, "send con_flag");
+//     ret = recvFile(child_fd);
+//     if(-1 == ret){
+// #ifdef _DEBUG
+//         printf("server fly\n");
+// #endif
+//     }
+//     if(0 == ret){
+//         printf("download file success\n");
+//     }
+//     
+// }
+// 
+void* downloadFunc(void* p_arg){
+    
     int ret;
     int con_flag = 1;
-    struct sockaddr_in* cli_child_addr = (struct sockaddr_in*)p_arg; 
-    int child_fd = socket(AF_INET, SOCK_STREAM, 0);
+    char file_name[20];
+    bzero(file_name, sizeof(file_name));
+    strcpy(file_name, p_arg);
+    int download_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ret = connect(download_fd, (struct sockaddr*)&cli_addr, sizeof(struct sockaddr_in));
+    ret = send(download_fd, &con_flag, 4, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    ret = send(download_fd, &(user_info.main_socket_fd), 4, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    int up_or_down = 2;
+    ret = send(download_fd, &up_or_down, 4, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
 
-    ret = connect(child_fd, (struct sockaddr*)cli_child_addr, sizeof(struct sockaddr_in));
-    ERROR_CHECK(ret, -1, "connect");
-    ret = send(child_fd, &con_flag, 4, 0);
-    ERROR_CHECK(ret, -1, "send con_flag");
-    ret = recvFile(child_fd);
-    if(-1 == ret){
+    // 发送要下载的文件名
+    ret = send(download_fd, file_name, 20, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+
+    // 接收文件写到目录中去
+    long file_res;
+    ret = recv(download_fd, &file_res, 8, MSG_WAITALL);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
 #ifdef _DEBUG
-        printf("server fly\n");
+    printf("f_sizeL%ld\n", file_res);
 #endif
+    if(-1 == file_res){
+        printf("no this file\n");
+        close(download_fd);
+    }else{
+        ret = recvFile(download_fd, file_name, file_res);
+        if(0 == ret){
+            printf("download success\n");
+        }else{
+            printf("unknown error\n");
+        }
     }
-    if(0 == ret){
-        printf("download file success\n");
-    }
-    
 }
+
+
 
 void *uploadFunc(void* p_arg){
     int ret;
@@ -473,6 +516,12 @@ login_begin:
                         print(user_info.u_path);
                     }
                 }else if(0 == strcmp(first, "download")){
+                    // 普通下载命令
+                    order = 6;
+                    ret = send(socket_fd, &order, 4, 0);
+                    CHECK_RET(-1, ret, socket_fd);
+                    pthread_t down_pid;
+                    ret = pthread_create(&down_pid, NULL, downloadFunc, second);
 
                 }else if(0 == strcmp(first, "downloads")){
 

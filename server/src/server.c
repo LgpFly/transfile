@@ -124,6 +124,36 @@ int main(int argc, char **argv){
                         close(client_fd);
                     }
                     
+                    // 2 普通下载
+                    if(2 == up_or_down){
+                        pQueNode p_node = (pQueNode)calloc(1, sizeof(QueNode));
+                        p_node->up_or_down = 2;
+                        // 接收文件名
+                        ret = recv(client_fd, p_node->f_name, 20, MSG_WAITALL);
+                        if(0 == ret){
+                            printf("client dont conn\n");
+                            close(client_fd);
+                        }
+                        // 初始化节点信息
+                        strcpy(p_node->u_name, child_name);
+                        strcpy(p_node->u_path, child_path);
+                        p_node->f_level = child_level + 1;
+                        p_node->client_fd = client_fd;
+
+#ifdef _DEBUG
+                        printf("p_node information:%d,%s,%s,%d,%s,%s,%ld,%d\n", p_node->up_or_down,
+                               p_node->f_name, p_node->f_md5, p_node->f_level, p_node->u_name,
+                               p_node->u_path, p_node->f_size, p_node->client_fd);
+#endif
+                        // 将任务节点放到任务队列中
+                        pthread_mutex_lock(&(thread_pool.task_que.mutex));
+                        ret = taskQueInsert(&(thread_pool.task_que), p_node);
+                        pthread_mutex_unlock(&(thread_pool.task_que.mutex));
+                        // 唤醒子线程
+                        pthread_cond_signal(&(thread_pool.task_que.cond));
+
+                    }
+
                     // 1:上传文件
                     if(1 == up_or_down){
                         // 创建一个任务节点
@@ -603,6 +633,9 @@ int main(int argc, char **argv){
                         
                         // download 普通下载命令 
                         case 6:
+                            
+
+
                             break;
                         // downloads 多点下载
                         case 7:

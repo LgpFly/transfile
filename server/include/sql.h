@@ -31,4 +31,7 @@ int lsFunc(MYSQL*, UserInfo*, int, char*);
 
 int addFile(MYSQL*, char* u_name, char* f_name, long f_size, char* md5, int f_level);
 
+long findFile(MYSQL*, char*, char*, int);
+
+
 #endif
