@@ -6,6 +6,7 @@
 // 任务队列的节点
 typedef struct node{
     int up_or_down;
+    char dir_dad[20];
     char f_name[20];
     char f_md5[33];
     int f_level;

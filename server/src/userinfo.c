@@ -31,6 +31,7 @@ void initUserInfo(UserInfo* user_info){
     user_info->f_level_dad = -1;
     user_info->con_flag = 1;
     user_info->login_flag = 1;
+
 }
 
 
@@ -58,7 +59,10 @@ void chUserInfo(UserInfo* user_info, int m, char (*dir)[20]){
             }
         }
     }
+#ifdef _DEBUG
 
+    printf("zhixingdaozhele\n");
+#endif
     return;
 
     

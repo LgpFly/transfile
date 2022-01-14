@@ -14,6 +14,7 @@ typedef struct{
     int f_level_dad;            // 父目录层级
     int con_flag;               // 连接状态
     int login_flag;
+    char dir_dad[20];
 }UserInfo, *pUserInfo;
 
 

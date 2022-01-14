@@ -163,11 +163,27 @@ int addRootFile(MYSQL* sql_conn, char* u_name, char* f_name, char type, int f_le
     }
 }
 
-void addDir(MYSQL* sql_conn, char* u_name, char* f_name, char type, int f_level, int f_level_dad){
-    addRootFile(sql_conn, u_name, f_name, type, f_level, f_level_dad);
+void addDir(MYSQL* sql_conn, char* u_name, char* f_name, char type, int f_level, int f_level_dad, char* dir_dad){
+    
+    char query[200]="insert into fileinfo (u_name, f_name, f_type, f_level, f_level_father, dir_dad)values(";                                                                                     
+    sprintf(query, "%s'%s', '%s', '%c', '%d', %d, '%s')",query, u_name, f_name, type, f_level, f_level_dad, dir_dad);
+    printf("query= %s\n",query);
+    int t;
+    t=mysql_query(sql_conn,query);
+    if(t)
+    {
+#ifdef _DEBUG
+        printf("Error making query:%s\n",mysql_error(sql_conn));
+#endif
+    }else{
+#ifdef _DEBUG
+        printf("insert success\n");
+#endif
+    }
+
 }
 
-int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
+int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level, char* dir_dad){
     MYSQL_RES *res;
     MYSQL_ROW row;
     char query[300];
@@ -179,6 +195,9 @@ int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
     strcat(query, "' and f_type='d'");
     strcat(query, "and f_level=");
     sprintf(query, "%s%d", query, f_level);
+    strcat(query, " and dir_dad='");
+    strcat(query, dir_dad);
+    strcat(query, "'");
     puts(query);
     int t;
     t=mysql_query(sql_conn,query);
@@ -207,6 +226,11 @@ int findDir(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
 }
 
 int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
+    
+#ifdef _DEBUG
+    printf("now:%d,%d,%s\n", user_info[m].f_level, user_info[m].f_level_dad, user_info[m].dir_dad);
+#endif
+    
     MYSQL_RES *res;
     MYSQL_ROW row;
     int level = user_info[m].f_level;
@@ -214,7 +238,7 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
     char name[20];
     bzero(name, sizeof(name));
     strcpy(name, user_info[m].u_name);
-    char query[100];
+    char query[300];
     int t;
     for(int i = 0; i < 5; ++i){
         if(0 != strcmp(dir[i], "")){
@@ -223,8 +247,9 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
                     return -1;
                 }else{
                     bzero(query, sizeof(query));
-                    strcat(query, "select f_level_father from fileinfo where u_name = '");
-                    sprintf(query, "%s%s%s%s%d%s", query, name, "'", " and f_level=", level_dad, " and f_type = 'd'");
+                    strcat(query, "select dir_dad from fileinfo where u_name = '");
+                    sprintf(query, "%s%s%s%s%s%s%s", query, name, "'", " and f_name='", user_info[m].dir_dad, "'", 
+                            " and f_type = 'd'");
                     puts(query);
                     t = mysql_query(sql_conn, query);
                     if(t){
@@ -235,7 +260,8 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
                         if(res){
                             if((row = mysql_fetch_row(res)) != NULL){
                                 level = level_dad;
-                                level_dad = atoi(row[0]);
+                                level_dad--;
+                                strcpy(user_info[m].dir_dad, row[0]);
                                 mysql_free_result(res);
                             }else{
                                 
@@ -250,8 +276,8 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
             }else{
                 bzero(query, sizeof(query));
                 strcat(query, "select f_level from fileinfo where u_name='");
-                sprintf(query, "%s%s%s%s%d%s%s%s%s", query, name, "'", " and f_level_father=", level, " and f_type='d'", 
-                        "and f_name='", dir[i], "'");
+                sprintf(query, "%s%s%s%s%d%s%s%s%s%s%s%s", query, name, "'", " and f_level_father=", level, " and f_type='d'", 
+                        " and f_name='", dir[i], "'", " and dir_dad='", user_info[m].dir_dad, "'");
                 puts(query);
                 t = mysql_query(sql_conn, query);
                 if(t){
@@ -263,6 +289,8 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
                         if((row = mysql_fetch_row(res)) != NULL){
                             level_dad = level;
                             level = atoi(row[0]);
+                            bzero(user_info[m].dir_dad, sizeof(user_info[m].dir_dad));
+                            strcpy(user_info[m].dir_dad, dir[i]);
                             mysql_free_result(res);
                         }else{
 #ifdef _DEBUG
@@ -285,6 +313,9 @@ int myChDir(MYSQL* sql_conn, UserInfo* user_info, int m, char (*dir)[20]){
             break;
         }
     }
+#ifdef _DEBUG
+    printf("now:%d,%d,%s\n", user_info[m].f_level, user_info[m].f_level_dad, user_info[m].dir_dad);
+#endif
     return 0;
 }
 
@@ -293,7 +324,8 @@ int lsFunc(MYSQL* sql_conn, UserInfo* user_info, int m, char* result){
     MYSQL_RES *res;
     MYSQL_ROW row;
     char query[300]="select f_name, f_type, f_size from fileinfo where u_name = '";
-    sprintf(query, "%s%s%s%s%d", query, user_info[m].u_name, "'", " and f_level = ", user_info[m].f_level + 1);
+    sprintf(query, "%s%s%s%s%d%s%s%s", query, user_info[m].u_name, "'", 
+            " and f_level = ", user_info[m].f_level + 1, " and dir_dad='", user_info[m].dir_dad, "'");
 #ifdef _DEBUG
     puts(query);
 #endif
@@ -329,11 +361,11 @@ int lsFunc(MYSQL* sql_conn, UserInfo* user_info, int m, char* result){
 }
 
 // f_level其实是他的dad级别，他自己的级别应该是f_level+1
-int addFile(MYSQL* sql_conn, char* u_name, char* f_name, long f_size, char* md5, int f_level){
+int addFile(MYSQL* sql_conn, char* u_name, char* f_name, long f_size, char* md5, int f_level, char *dir_dad){
     
     char type = 'f';
-    char query[200]="insert into fileinfo (u_name, f_name, f_size, f_type, f_level, f_level_father, md5)values(";                                                                                     
-    sprintf(query, "%s'%s', '%s', %ld, '%c', %d, %d, '%s')",query, u_name, f_name, f_size, type, f_level + 1, f_level, md5);
+    char query[300]="insert into fileinfo (u_name, f_name, f_size, f_type, f_level, f_level_father, md5, dir_dad)values(";                                                                                     
+    sprintf(query, "%s'%s', '%s', %ld, '%c', %d, %d, '%s', '%s')",query, u_name, f_name, f_size, type, f_level + 1, f_level, md5, dir_dad);
     printf("query= %s\n",query);
     int t;
     t=mysql_query(sql_conn,query);
@@ -353,7 +385,7 @@ int addFile(MYSQL* sql_conn, char* u_name, char* f_name, long f_size, char* md5,
 }
 
 
-long findFile(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
+long findFile(MYSQL* sql_conn, char* u_name, char* f_name, int f_level, char* dir_dad){
     MYSQL_RES *res;
     MYSQL_ROW row;
     long file_size;
@@ -364,8 +396,9 @@ long findFile(MYSQL* sql_conn, char* u_name, char* f_name, int f_level){
     strcat(query, "' and f_name='");
     strcat(query, f_name);
     strcat(query, "' and f_type='f'");
-    strcat(query, "and f_level=");
-    sprintf(query, "%s%d", query, f_level);
+    strcat(query, " and f_level=");
+    sprintf(query, "%s%d%s%s%s", query, f_level, " and dir_dad='", dir_dad, "'");
+    
     puts(query);
     int t;
     t=mysql_query(sql_conn,query);

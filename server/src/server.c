@@ -91,6 +91,7 @@ int main(int argc, char **argv){
                     int main_fd;
                     char child_name[20];
                     char child_path[50];
+                    char dir_dad[20];
                     int child_level;
 
                     // 找到是哪个客户端
@@ -106,6 +107,8 @@ int main(int argc, char **argv){
                             strcpy(child_name, user_info[i].u_name);
                             memset(child_path, 0, sizeof(child_path));
                             strcpy(child_path, user_info[i].u_path);
+                            bzero(dir_dad, sizeof(dir_dad));
+                            strcpy(dir_dad, user_info[i].dir_dad);
                             child_level = user_info[i].f_level;
 #ifdef _DEBUG
                             printf("child infomaintion:%s%s%d\n", child_name, child_path, child_level);
@@ -137,6 +140,7 @@ int main(int argc, char **argv){
                         // 初始化节点信息
                         strcpy(p_node->u_name, child_name);
                         strcpy(p_node->u_path, child_path);
+                        strcpy(p_node->dir_dad, dir_dad);                        
                         p_node->f_level = child_level + 1;
                         p_node->client_fd = client_fd;
 
@@ -177,6 +181,7 @@ int main(int argc, char **argv){
                         }
                         strcpy(p_node->u_name, child_name);
                         strcpy(p_node->u_path, child_path);
+                        strcpy(p_node->dir_dad, dir_dad);
                         p_node->f_level = child_level;
                         p_node->client_fd = client_fd;
                         
@@ -437,6 +442,7 @@ int main(int argc, char **argv){
                                         }
                                         // 初始化其他信息
                                         initUserInfo(user_info + m);
+                                        strcpy(user_info[m].dir_dad, cur_name);
                                         // 将信息发送到客户端   path, level, level_dad
                                         // ret = send(cur_cli_fd, user_info[m].u_path, 50, 0);
                                         // if(-1 == ret){
@@ -510,11 +516,11 @@ int main(int argc, char **argv){
 #endif
                             int find_dir_res;
                             find_dir_res = findDir(sql_conn, user_info[m].u_name, second, 
-                                                   user_info[m].f_level + 1);
+                                                   user_info[m].f_level + 1, user_info[m].dir_dad);
                             int mkdir_result;
                             if(0 == find_dir_res){
                                 addDir(sql_conn, user_info[m].u_name, second, 'd', 
-                                       user_info[m].f_level + 1, user_info[m].f_level);
+                                       user_info[m].f_level + 1, user_info[m].f_level, user_info[m].dir_dad);
                                 // 相应的目录下，创建一个目录
                                 bzero(cwd, sizeof(cwd));
                                 getcwd(cwd, sizeof(cwd));
@@ -569,9 +575,18 @@ int main(int argc, char **argv){
                             int chdir_res;
                             chdir_res = myChDir(sql_conn, user_info, m, cur_dir);
                             int chdir_result;
+#ifdef _DEBUG
+                            printf("%d\n", chdir_res);
+                            fflush(stdout);
+#endif
                             if(0 == chdir_res){
                                 // 改变user_info里面的信息,只有路径信息，其他的已经改了
                                 chUserInfo(user_info, m, cur_dir);
+#ifdef _DEBUG
+                                printf("chUserInfo\n");
+
+                                fflush(stdout);
+#endif
                                 chdir_result = 0;
                                 ret = send(cur_cli_fd, &chdir_result, 4, 0);
                                 if(-1 == ret){

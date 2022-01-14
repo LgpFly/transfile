@@ -44,7 +44,7 @@ void* threadFunc(void* p_arg){
                 int client_fd = p_one_node->client_fd;
                 long find_res;
                 // find s return is file_size if dont have this file retur -1
-                find_res = findFile(sql_conn, p_one_node->u_name, p_one_node->f_name, p_one_node->f_level);
+                find_res = findFile(sql_conn, p_one_node->u_name, p_one_node->f_name, p_one_node->f_level, p_one_node->dir_dad);
 #ifdef _DEBUG
                 printf("f_size:%ld\n", find_res);
 #endif
@@ -94,7 +94,7 @@ void* threadFunc(void* p_arg){
                 }
                 chdir(cwd);
                 // write info to database
-                addFile(sql_conn, p_one_node->u_name, p_one_node->f_name, p_one_node->f_size, p_one_node->f_md5, p_one_node->f_level); 
+                addFile(sql_conn, p_one_node->u_name, p_one_node->f_name, p_one_node->f_size, p_one_node->f_md5, p_one_node->f_level, p_one_node->dir_dad); 
                 
             }
 
