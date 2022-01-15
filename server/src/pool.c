@@ -39,6 +39,51 @@ void* threadFunc(void* p_arg){
         
         if(0 == ret){
             // 再写代码在这里开始写
+            // 多点下载
+            if(3 == p_one_node->up_or_down){
+                int cli_fd = p_one_node->client_fd;
+
+                Train train;
+                char cwd[50];
+                bzero(cwd, sizeof(cwd));
+                getcwd(cwd, sizeof(cwd));
+#ifdef _DEBUG
+                printf("now:%s,then:%s", cwd, p_one_node->u_path);
+#endif
+
+                chdir(p_one_node->u_path);
+                int file_fd = open(p_one_node->f_name, O_RDWR);
+                if(-1 == file_fd){
+#ifdef _DEBUG
+                    printf("open file error\n");
+#endif
+                    close(cli_fd);
+                }
+                lseek(file_fd, p_one_node->f_seek, 0);
+
+                int one_send = 0;
+                int already_send = 0;
+                while(already_send < p_one_node->recv_size){
+                    bzero(&train, sizeof(train));
+                    one_send = read(file_fd, train.buf, sizeof(train.buf));
+                    train.data_len = one_send;
+                    ret = send(cli_fd, &train, 4 + train.data_len, 0);
+                    if(-1 == ret){
+#ifdef _DEBUG
+                        printf("send file error(client fly)\n");
+#endif
+                        close(cli_fd);
+                    }
+
+                    already_send += one_send;
+                }
+
+                close(file_fd);
+                chdir(cwd);
+
+
+            }
+
             // 普通下载
             if(2 == p_one_node->up_or_down){
                 int client_fd = p_one_node->client_fd;

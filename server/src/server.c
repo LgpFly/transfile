@@ -126,6 +126,46 @@ int main(int argc, char **argv){
                         printf("client dont conn\n");
                         close(client_fd);
                     }
+
+                    // 3 多点下载
+                    if(3 == up_or_down){
+                        pQueNode p_node = (pQueNode)calloc(1, sizeof(QueNode));
+                        p_node->up_or_down = 3;
+                        // 接收文件名
+                        ret = recv(client_fd, p_node->f_name, 20, MSG_WAITALL);
+                        if(0 == ret){
+                            printf("client dont conn\n");
+                            close(client_fd);
+                        }
+                        // 接收偏移位置
+                        ret = recv(client_fd, &(p_node->f_seek), 8, 0);
+                        if(0 == ret){
+                            printf("client dont conn\n");
+                            close(client_fd);
+                        }
+                        // 接收要发送的文件大小
+                        ret = recv(client_fd, &(p_node->recv_size), 8, 0);
+
+                        // 初始化节点信息
+                        strcpy(p_node->u_name, child_name);
+                        strcpy(p_node->u_path, child_path);
+                        strcpy(p_node->dir_dad, dir_dad);                        
+                        p_node->f_level = child_level + 1;
+                        p_node->client_fd = client_fd;
+
+#ifdef _DEBUG
+                        printf("p_node information:%d,%s,%s,%d,%s,%s,%ld,%d\n", p_node->up_or_down,
+                               p_node->f_name, p_node->f_md5, p_node->f_level, p_node->u_name,
+                               p_node->u_path, p_node->f_size, p_node->client_fd);
+#endif
+                        // 将任务节点放到任务队列中
+                        pthread_mutex_lock(&(thread_pool.task_que.mutex));
+                        ret = taskQueInsert(&(thread_pool.task_que), p_node);
+                        pthread_mutex_unlock(&(thread_pool.task_que.mutex));
+                        // 唤醒子线程
+                        pthread_cond_signal(&(thread_pool.task_que.cond));
+
+                    }
                     
                     // 2 普通下载
                     if(2 == up_or_down){
@@ -654,6 +694,27 @@ int main(int argc, char **argv){
                             break;
                         // downloads 多点下载
                         case 7:
+#ifdef _DEBUG
+                            printf("这里是多点下载\n");
+                            printf("userInformation:%s%d\n", user_info[m].u_name, user_info[m].f_level);
+#endif
+                            char file_name[20];
+                            bzero(file_name, sizeof(file_name));
+                            ret = recv(cur_cli_fd, file_name, 20, MSG_WAITALL);
+                            if(-1 == ret){
+                                closeConn(epfd, user_info, m);
+                                break;
+                            }
+
+                            long file_size;
+                            file_size = findFile(sql_conn, user_info[m].u_name, file_name, 
+                                           user_info[m].f_level + 1, user_info[m].dir_dad);
+                            
+                            ret = send(cur_cli_fd, &file_size, 8, 0);
+                            if(-1 == ret){
+                                closeConn(epfd, user_info, m);
+                                break;
+                            }
                             break;
                         // ps 查看下载上传进度
                         // 好像这里用不到
@@ -661,10 +722,41 @@ int main(int argc, char **argv){
                             break;
                         // del 删除文件
                         case 9:
+                            bzero(second, sizeof(second));                            
+                            ret = recv(cur_cli_fd, second, 20, MSG_WAITALL);
+                            if(0 == ret){
+                                closeConn(epfd, user_info, m);
+                                break;
+                            }
+
+                            int del_res;
+                            del_res = delFile(user_info[m].u_name, user_info[m].f_level, 
+                                              second, user_info[m].dir_dad);
+
+                            ret = send(cur_cli_fd, &del_res, 4, 0);
+                            if(-1 == ret){
+                                closeConn(epfd, user_info, m);
+                                break;
+                            }
+
+                            if(0 == del_res){
+                                bzero(cwd, sizeof(cwd));
+                                getcwd(cwd, sizeof(cwd));
+                                chdir(user_info[m].u_path);
+                                remove(second);
+                                chdir(cwd);
+                            }
+
                             break;
 
                         // quit退出
                         case 10:
+
+                                                       
+                            printf("client dont conn\n");
+                            epollDelFd(epfd, cur_cli_fd);
+                            close(cur_cli_fd);
+                            memset(user_info + m, 0, sizeof(UserInfo));
                             break;
 
 

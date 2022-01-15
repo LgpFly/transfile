@@ -28,7 +28,56 @@ int socket_fd;
 //     }
 //     
 // }
-// 
+
+void* downsFunc1(void* p_arg){
+
+    pDownFileInfo p_pice_info = (pDownFileInfo)p_arg;
+    int ret;
+    int con_flag = 1;
+    char file_name[20];
+    bzero(file_name, sizeof(file_name));
+    strcpy(file_name, p_pice_info->f_name);
+    int download_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ret = connect(download_fd, (struct sockaddr*)&cli_addr, sizeof(struct sockaddr_in));
+    ret = send(download_fd, &con_flag, 4, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    ret = send(download_fd, &(user_info.main_socket_fd), 4, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    int up_or_down = 3;
+    ret = send(download_fd, &up_or_down, 4, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+
+    // 发送要下载的文件名
+    ret = send(download_fd, file_name, 20, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    // 发送文件偏移位置
+    ret = send(download_fd, &p_pice_info->f_seek, 8, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    // 发送文件要读取的大小
+    ret = send(download_fd, &p_pice_info->recv_size, 8, 0);
+    CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+    // 接收文件大小先，然后写到目录中去
+    // long file_res;
+    // ret = recv(download_fd, &file_res, 8, MSG_WAITALL);
+    // CHILD_CHECK_RET(-1, ret, socket_fd, download_fd);
+#ifdef _DEBUG
+    printf("f_sizeL%ld\n", p_pice_info->recv_size);
+#endif
+    // if(-1 == file_res){
+        // printf("no this file\n");
+        // close(download_fd);
+    // }else{
+        ret = recvsFile(download_fd, file_name, p_pice_info->recv_size, p_pice_info->f_seek);
+        if(0 == ret){
+            printf("download success\n");
+        }else{
+            printf("unknown error\n");
+        }
+    // }
+}
+
+
+
 void* downloadFunc(void* p_arg){
     
     int ret;
@@ -524,11 +573,89 @@ login_begin:
                     ret = pthread_create(&down_pid, NULL, downloadFunc, second);
 
                 }else if(0 == strcmp(first, "downloads")){
+                    order = 7;
+                    ret = send(socket_fd, &order, 4, 0);
+                    CHECK_RET(-1, ret, socket_fd);
 
+                    // 发送文件名
+                    ret = send(socket_fd, second, 20, 0);
+                    CHECK_RET(-1, ret, socket_fd);
+
+                    // 接收文件大小
+                    long file_size;
+                    ret = recv(socket_fd, &file_size, 8, 0);
+                    CHECK_RET(-1, ret, socket_fd);
+                    if(-1 == file_size){
+                        printf("no this file\n");
+                        print(user_info.u_path);
+                    }else{
+#ifdef _DEBUG
+                        printf("flie_size:%ld\n", file_size);
+#endif
+                        long one_pice = file_size / 3; 
+                        DownFileInfo down_file_info[3];
+                        bzero(down_file_info, sizeof(DownFileInfo) * 3);
+                        // 先对第一个结构体赋值
+                        strcpy(down_file_info[0].f_name, second);
+                        down_file_info[0].f_seek = 0;
+                        down_file_info[0].recv_size = one_pice;
+
+                        // 第二个
+                        strcpy(down_file_info[1].f_name, second);
+                        down_file_info[1].f_seek = one_pice;
+                        down_file_info[1].recv_size = one_pice;
+
+                        // 第三个
+                        
+                        strcpy(down_file_info[2].f_name, second);
+                        down_file_info[2].f_seek = one_pice * 2;
+                        down_file_info[2].recv_size = file_size - (one_pice * 2);
+
+#ifdef _DEBUG
+                        printf("here\n");
+                        for(int i = 0; i < 3; ++i)
+                            printf("name:%s,f_seek:%ld,recv_size:%ld\n", down_file_info[i].f_name, 
+                                   down_file_info[i].f_seek, down_file_info[i].recv_size);
+#endif
+                        int fd = open(second, O_CREAT|O_RDWR, 0666);
+                        ftruncate(fd, file_size);
+                        lseek(fd, 0, 0);
+                        close(fd);
+
+                        pthread_t downs_pid[3];
+                        pthread_create(downs_pid, NULL, downsFunc1, &(down_file_info[0]));
+                        pthread_create(downs_pid + 1, NULL, downsFunc1, &(down_file_info[1]));
+                        pthread_create(downs_pid + 2, NULL, downsFunc1, &(down_file_info[2]));
+                        print(user_info.u_path);
+                    }
                 }else if(0 == strcmp(first, "del")){
+                    order = 9;
+                    ret = send(socket_fd, &order, 4, 0);                    
+                    CHECK_RET(-1, ret, socket_fd);
+
+                    // 发送要删除的文件名
+                    ret = send(socket_fd, second, 20, 0);
+                    CHECK_RET(-1, ret, socket_fd);
+
+                    // 接收删除的结果
+                    int del_res;
+                    ret = recv(socket_fd, &del_res, 4, 0);
+                    CHECK_RET(0, ret, socket_fd);
+
+                    if(0 == del_res){
+                        printf("del success\n");
+                    }else{
+                        printf("del error\n");
+                    }
+
+                    print(user_info.u_path);
 
                 }else if(0 == strcmp(first, "quit")){
-
+                    order = 10;
+                    ret = send(socket_fd, &order, 4, 0);
+                    close(socket_fd);
+                    printf("bye\n");
+                    exit(0);
                 }else{
                     printf("order error\n");
                     print(user_info.u_path);

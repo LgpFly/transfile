@@ -146,6 +146,41 @@ int sendFile(int fd, char* name, long size){
 
 }
 
+
+int recvsFile(int cli_fd, char* f_name, long f_size, long f_seek){
+    
+    int ret;
+    int file_fd = open(f_name, O_CREAT|O_RDWR, 0666);
+    lseek(file_fd, f_seek, 0);
+    long already_recv = 0;
+    int one_recv;
+    char buf[1020];
+    while(already_recv < f_size){
+        ret = recv(cli_fd, &one_recv, 4, MSG_WAITALL);
+        if(0 == ret){
+            printf("server fly\n");
+            close(file_fd);
+            close(cli_fd);
+            return -1;
+        }
+        bzero(buf, sizeof(buf));
+        ret = recv(cli_fd, buf, one_recv, MSG_WAITALL);
+        if(0 == ret){
+            printf("server fly\n");
+            close(file_fd);
+            close(cli_fd);
+            return -1;
+        }
+        ret = write(file_fd, buf, one_recv);
+
+    }
+    close(file_fd);
+    return 0;
+
+
+}
+
+
 int recvFile(int cli_fd, char* f_name, long f_size){
     
     int ret;
@@ -173,6 +208,7 @@ int recvFile(int cli_fd, char* f_name, long f_size){
         ret = write(file_fd, buf, one_recv);
 
     }
+    close(file_fd);
     return 0;
 
 

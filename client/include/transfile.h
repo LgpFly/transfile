@@ -14,6 +14,14 @@ typedef struct{
     char f_md5[33];
 }UpFileInfo, *pUpFileInfo;
 
+// for downloads
+typedef struct{
+    char f_name[20];
+    long f_seek;
+    long recv_size;
+}DownFileInfo, *pDownFileInfo;
+
+
 
 int getFileInfo(char*, pUpFileInfo);
 
@@ -22,5 +30,7 @@ int sendFile(int client_fd, char* name, long size);
 
 // 接收一个文件
 int recvFile(int client_fd, char* name, long f_size);
+
+int recvsFile(int, char*, long, long);
 
 #endif

@@ -4,6 +4,14 @@
 #include "head.h"
 #include "userinfo.h"
 
+typedef struct{
+    char u_name[20];
+    int f_level;
+    char f_name[20];
+}DelDir;
+
+
+
 MYSQL* sql_conn;
 /*
  * 连接数据库 
@@ -33,5 +41,8 @@ int addFile(MYSQL*, char* u_name, char* f_name, long f_size, char* md5, int f_le
 
 long findFile(MYSQL*, char*, char*, int, char*);
 
+int delDir(char*, int, char*);
+
+int delFile(char*, int, char*, char*);
 
 #endif
